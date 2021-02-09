@@ -6,10 +6,12 @@
 int write(const char*);
 int read(const char*);
 
+const char* FILENAME = "/tmp/c_test.txt";
+
 int main(void)
 {
-	write("/tmp/c_test.txt");
-	read("/tmp/c_test.txt");
+	write(FILENAME);
+	read(FILENAME);
 	return EXIT_SUCCESS;
 }
 
@@ -20,9 +22,9 @@ int write(const char* filename)
 		fprintf(stderr, "Error opening %s, %s.\n", filename, strerror(errno));
 		return EXIT_FAILURE;
 	}
-	fputs("This is a test file.\n", fp);
+	fputs("This is a C test file.\n", fp);
 	for (int i = 1; i <= 10; i++) {
-		fprintf(fp, "This is line %i.\n", i);
+		fprintf(fp, "This is C test line %i.\n", i);
 	}
 	if (fclose(fp) == EXIT_SUCCESS) {
 		return EXIT_SUCCESS;
