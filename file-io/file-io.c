@@ -3,8 +3,8 @@
 #include <stdio.h>
 #include <string.h>
 
-int write(const char*);
-int read(const char*);
+int write(char const* const);
+int read(char const* const);
 
 const char* FILENAME = "/tmp/c_test.txt";
 
@@ -15,7 +15,7 @@ int main(void)
 	return EXIT_SUCCESS;
 }
 
-int write(const char* filename)
+int write(char const* const filename)
 {
 	FILE* fp = fopen(filename, "w");
 	if (!fp) {
@@ -34,7 +34,7 @@ int write(const char* filename)
 	};
 }
 
-int read(const char* filename)
+int read(char const* const filename)
 {
 	FILE* fp = fopen(filename, "r");
 	if (!fp) {
