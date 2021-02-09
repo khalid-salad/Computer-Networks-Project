@@ -17,7 +17,7 @@ int write(const char* filename)
 {
 	FILE* fp = fopen(filename, "w");
 	if (!fp) {
-		fprintf(stderr, "Error opening %s.\n", filename);
+		fprintf(stderr, "Error opening %s, %s.\n", filename, strerror(errno));
 		return EXIT_FAILURE;
 	}
 	fputs("This is a test file.\n", fp);
@@ -36,7 +36,7 @@ int read(const char* filename)
 {
 	FILE* fp = fopen(filename, "r");
 	if (!fp) {
-		fprintf(stderr, "Error opening %s, error %s.\n", filename, strerror(errno));
+		fprintf(stderr, "Error opening %s, %s.\n", filename, strerror(errno));
 		return EXIT_FAILURE;
 	}
 	char* buffer = NULL;
@@ -51,7 +51,7 @@ int read(const char* filename)
 		return EXIT_FAILURE;
 	};
 	if (line_size == -1 && errno != EXIT_SUCCESS) {
-		fprintf(stderr, "Error reading %s, error %s.\n", filename, strerror(errno));
+		fprintf(stderr, "Error reading %s, %s.\n", filename, strerror(errno));
 		return EXIT_FAILURE;
 	} else {
 		return EXIT_SUCCESS;
