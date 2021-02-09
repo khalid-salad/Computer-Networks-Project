@@ -46,13 +46,11 @@ int read(const char* filename)
 		printf("%s", buffer);
 	}
 	free(buffer);
-	if (fclose(fp) == 0) {
-		return EXIT_SUCCESS;
-	} else {
+	if (fclose(fp) != 0) {
 		fprintf(stderr, "Error closing %s, %s.\n", filename, strerror(errno));
 		return EXIT_FAILURE;
 	};
-	if (line_size == -1) {
+	if (line_size == -1 && errno != EXIT_SUCCESS) {
 		fprintf(stderr, "Error reading %s, error %s.\n", filename, strerror(errno));
 		return EXIT_FAILURE;
 	} else {
