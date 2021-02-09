@@ -24,7 +24,7 @@ int write(const char* filename)
 	for (int i = 1; i <= 10; i++) {
 		fprintf(fp, "This is line %i.\n", i);
 	}
-	if (fclose(fp) == 0) {
+	if (fclose(fp) == EXIT_SUCCESS) {
 		return EXIT_SUCCESS;
 	} else {
 		fprintf(stderr, "Error closing %s, %s.\n", filename, strerror(errno));
@@ -42,11 +42,11 @@ int read(const char* filename)
 	char* buffer = NULL;
 	size_t buf_size = 0;
 	ssize_t line_size;
-	while ((line_size = getline(&buffer, &buf_size, fp)) > 0) {
+	while ((line_size = getline(&buffer, &buf_size, fp)) >= 0) {
 		printf("%s", buffer);
 	}
 	free(buffer);
-	if (fclose(fp) != 0) {
+	if (fclose(fp) != EXIT_SUCCESS) {
 		fprintf(stderr, "Error closing %s, %s.\n", filename, strerror(errno));
 		return EXIT_FAILURE;
 	};
