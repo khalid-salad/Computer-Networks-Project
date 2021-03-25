@@ -119,7 +119,7 @@ void work(const int socket_fd)
 	} else if (pid == 0) {
 		client_message = read_string_from_socket(new_socket_fd);
 		printf("Received '%s' from client.\n", client_message);
-		write_string_to_socket(new_socket_fd, "Acknowledged.");
+		write_string_to_socket(new_socket_fd, "Hello from the C server.");
 		free(client_message);
 		close(new_socket_fd);
 		// close(socket_fd);
