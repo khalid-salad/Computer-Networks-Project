@@ -1,6 +1,7 @@
 #include <sys/socket.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <sys/types.h>
 #include <stdlib.h>
 #include <string.h>
 #include <netdb.h>
@@ -8,68 +9,22 @@
 #include <signal.h>
 #include <errno.h>
 #include "banned.h"
-#include "socketf.h"
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 volatile sig_atomic_t running = true;
 
-int open_socket(const int);
-void interrupt_handler(int);
-void set_signal(struct sigaction*);
-void work(const int);
-
-int main(int argc, char* argv[argc + 1])
+void handle_client(int socket_fd)
 {
-	/*
-	 * Creates TCP socket and listens. Receives message from client then returns
-     * acknowledgement.
-     */
-	if (argc < 2) {
-		printf("Please pass port number to command line.\n");
-		exit(EXIT_FAILURE);
+	char buffer[128];
+	int bytes_received = recv(socket_fd, buffer, 128, 0);
+	if (bytes_received < 0) {
+		perror("Recv failed:");
+		exit(0);
 	}
-	int port_number = atoi(argv[1]);
-	int socket_fd = open_socket(port_number);
-	if (socket_fd < 0) {
-		exit(EXIT_FAILURE);
-	}
-
-	struct sigaction action;
-	set_signal(&action);
-	while (running) {
-		work(socket_fd);
-	}
-	close(socket_fd);
-	return EXIT_SUCCESS;
-}
-
-int open_socket(const int port_number)
-{
-	/*
-	 * Opens socket at port number. Returns negative number on error, else returns
-	 * socket file descriptor. 
-	 */
-	int socket_fd = socket(AF_INET, SOCK_STREAM, 0);
-	if (socket_fd < 0) {
-		perror("Error opening socket");
-	} else {
-		int set = 1;
-		setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, &set, sizeof(set));
-		sockaddr_in server_address = { .sin_family = AF_INET,
-									   .sin_addr.s_addr = INADDR_ANY,
-									   .sin_port = htons(port_number) };
-		int binding =
-			bind(socket_fd, (sockaddr*)&server_address, sizeof(server_address));
-		if (binding < 0) {
-			perror("Error on binding");
-			return binding;
-		}
-		int n = listen(socket_fd, 5);
-		if (n < 0) {
-			perror("Error on listen");
-			return n;
-		}
-	}
-	return socket_fd;
+	printf("Received message from client: %s\n", buffer);
+	char response[] = "Hello from the C server";
+	send(socket_fd, response, strlen(response), 0);
 }
 
 void interrupt_handler(int signum)
@@ -96,35 +51,54 @@ void set_signal(struct sigaction* action_ptr)
 	}
 }
 
-void work(const int socket_fd)
+int main(int argc, char* argv[argc + 1])
 {
-	/*
-	 * Performs server work: accepts connection on socket and forks. Child process
-	 * reads message from client then writes an acknowledgement to the socket.
-	 */
-	sockaddr_in client_address;
-	socklen_t client_size = sizeof(client_address);
-	int new_socket_fd = accept(socket_fd, (sockaddr*)&client_address, &client_size);
-	if (new_socket_fd == -1) {
-		if (errno == EINTR) {
-			return;
-		}
-		perror("Unable to connect");
+	if (argc < 2) {
+		printf("Please pass port number to command line.\n");
 		exit(EXIT_FAILURE);
 	}
-	char* client_message;
-	pid_t pid = fork();
-	if (pid == -1) {
-		perror("Error forking");
-	} else if (pid == 0) {
-		client_message = read_string_from_socket(new_socket_fd);
-		printf("Received '%s' from client.\n", client_message);
-		write_string_to_socket(new_socket_fd, "Hello from the C server.");
-		free(client_message);
+	int port_number = atoi(argv[1]);
+	int socket_fd = socket(AF_INET6, SOCK_STREAM, 0);
+	if (socket_fd < 0) {
+		perror("Error creating socket:");
+		exit(EXIT_FAILURE);
+	}
+	int set = 1;
+	int ret = setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, &set, sizeof(set));
+	if (ret < 0) {
+		perror("setsockopt failed");
+		return -1;
+	}
+	struct sockaddr_in6 server_address;
+	memset(&server_address, 0, sizeof(server_address));
+	server_address.sin6_family = AF_INET6;
+	server_address.sin6_port = htons(port_number);
+	server_address.sin6_addr = in6addr_any;
+	ret = bind(socket_fd, (struct sockaddr*)&server_address, sizeof(server_address));
+	if (ret < 0) {
+		perror("Bind failed");
+		exit(EXIT_FAILURE);
+	}
+	ret = listen(socket_fd, 1);
+	if (ret < 0) {
+		perror("Listen failed");
+		exit(EXIT_FAILURE);
+	}
+	if (ret < 0) {
+		close(socket_fd);
+		exit(EXIT_FAILURE);
+	}
+	struct sigaction action;
+	set_signal(&action);
+	while (running) {
+		int new_socket_fd = accept(socket_fd, NULL, NULL);
+		if (new_socket_fd < 0) {
+			perror("Error accepting");
+			break;
+		}
+		handle_client(new_socket_fd);
 		close(new_socket_fd);
-		// close(socket_fd);
-		exit(EXIT_SUCCESS);
-	} // else {
-	// 	close(new_socket_fd);
-	// }
+	}
+	close(socket_fd);
+	return EXIT_SUCCESS;
 }

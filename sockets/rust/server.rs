@@ -1,16 +1,13 @@
 use std::{
     env,
-    io::Read,
-    io::Write,
+    io::{Read, Write},
     net::{TcpListener, TcpStream},
 };
 
 fn handle_client(mut stream: TcpStream) -> std::io::Result<()> {
-    let mut buf = vec![0; 128];
-    stream.read(&mut buf)?;
-    buf.resize(buf[0] as usize, 0);
-    stream.read(&mut buf)?;
-    let string = std::str::from_utf8(&buf).unwrap();
+    let mut buffer = [0; 128];
+    stream.read(&mut buffer)?;
+    let string = std::str::from_utf8(&buffer).unwrap();
     println!("Received message from client: {}", string);
     stream.write(b"Hello from the Rust Server")?;
     Ok(())
@@ -18,10 +15,8 @@ fn handle_client(mut stream: TcpStream) -> std::io::Result<()> {
 
 fn main() -> std::io::Result<()> {
     let args: Vec<String> = env::args().collect();
-    let host = &args[1];
-    let port = &args[2];
-    println!("{}:{}", host, port);
-    let listener = TcpListener::bind(format!("{}:{}", host, port))?;
+    let port = &args[1];
+    let listener = TcpListener::bind(format!("localhost:{}", port))?;
 
     // accept connections and process them serially
     for stream in listener.incoming() {
