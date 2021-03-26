@@ -31,6 +31,10 @@ char* read_string_from_socket(const int socket_fd)
 		return NULL;
 	}
 	char* buffer = malloc(length + 1);
+	if (buffer == NULL) {
+		perror("Error allocating buffer");
+		char* buffer = malloc(length + 1);
+	}
 	int n = recv(socket_fd, buffer, length + 1, MSG_NOSIGNAL);
 	if (n < 0) {
 		perror("Error reading from socket");
