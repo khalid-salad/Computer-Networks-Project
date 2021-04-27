@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "person.pb-c.h": "c",
+        "protobuf-c.h": "c"
+    }
+}

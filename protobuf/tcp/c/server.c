@@ -11,20 +11,33 @@
 #include "banned.h"
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include "person.pb-c.h"
 
 volatile sig_atomic_t running = true;
 
 void handle_client(int socket_fd)
 {
-	char buffer[128];
+	char buffer[1024];
 	int bytes_received = recv(socket_fd, buffer, 128, 0);
 	if (bytes_received < 0) {
 		perror("Recv failed:");
 		exit(0);
 	}
-	printf("Received message from client: %s\n", buffer);
-	char response[] = "Hello from the C server";
-	send(socket_fd, response, strlen(response), 0);
+	Tutorial__Person message = TUTORIAL__PERSON__INIT;
+	const char msg[] = "C Server";
+	unsigned int length = strlen(msg);
+	message.name = malloc(length + 1);
+	memcpy(message.name, msg, length + 1);
+	message.name[length + 1] = 0;
+	message.id = 1;
+	length = tutorial__person__get_packed_size(&message);
+	Tutorial__Person* client_msg =
+		tutorial__person__unpack(NULL, bytes_received, (uint8_t*)buffer);
+	printf("Received message from client.\n");
+	printf("name: %s\n", client_msg->name);
+	printf("id: %d\n", client_msg->id);
+	tutorial__person__pack(&message, (uint8_t*)buffer);
+	send(socket_fd, buffer, length, 0);
 }
 
 void interrupt_handler(int signum)

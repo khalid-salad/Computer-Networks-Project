@@ -11,17 +11,21 @@
 #include "banned.h"
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include "person.pb-c.h"
 
 int main(int argc, char* argv[argc + 1])
 {
-	if (argc < 4) {
-		printf("Please pass hostname, port number, and message.");
-		exit(EXIT_FAILURE);
-	}
 	char* host = argv[1];
 	char* port_number = argv[2];
-	char* message = argv[3];
-	char buffer[128];
+	Tutorial__Person message = TUTORIAL__PERSON__INIT;
+	char buffer[1024];
+	const char msg[] = "C Client";
+	unsigned int length = strlen(msg);
+	message.name = malloc(length + 1);
+	memcpy(message.name, msg, length + 1);
+	message.name[length + 1] = 0;
+	message.id = 1;
+	length = tutorial__person__get_packed_size(&message);
 	struct in6_addr server_address;
 	struct addrinfo hints, *res = NULL;
 	memset(&hints, 0x00, sizeof(hints));
@@ -57,8 +61,8 @@ int main(int argc, char* argv[argc + 1])
 		perror("Connect failed");
 		exit(EXIT_FAILURE);
 	}
-	ret = sendto(socket_fd, message, strlen(message), MSG_CONFIRM,
-				 (const struct sockaddr*)&server_address, sizeof(server_address));
+	tutorial__person__pack(&message, (uint8_t*)buffer);
+	ret = send(socket_fd, buffer, length, 0);
 	if (ret < 0) {
 		perror("Send failed");
 		exit(EXIT_FAILURE);
@@ -72,7 +76,11 @@ int main(int argc, char* argv[argc + 1])
 	} else if (ret == 0) {
 		printf("The server closed the connection");
 	} else {
-		printf("Received message from server: %s\n", buffer);
+		Tutorial__Person* response =
+			tutorial__person__unpack(NULL, ret, (uint8_t*)buffer);
+		printf("Received message from server.\n");
+		printf("name: %s\n", response->name);
+		printf("id: %d\n", response->id);
 	}
 	close(socket_fd);
 	if (res != NULL) {

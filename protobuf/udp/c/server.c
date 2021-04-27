@@ -11,20 +11,36 @@
 #include "banned.h"
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include "person.pb-c.h"
 
 volatile sig_atomic_t running = true;
 
-void handle_client(int socket_fd)
+void handle_client(int socket_fd, struct sockaddr_in6* client_address_ptr)
 {
-	char buffer[128];
-	int bytes_received = recv(socket_fd, buffer, 128, 0);
+	char buffer[1024];
+	unsigned int client_length = sizeof(*client_address_ptr);
+	int bytes_received = recvfrom(socket_fd, buffer, 128, MSG_WAITALL,
+								  (struct sockaddr*)client_address_ptr, &client_length);
 	if (bytes_received < 0) {
 		perror("Recv failed:");
 		exit(0);
 	}
-	printf("Received message from client: %s\n", buffer);
-	char response[] = "Hello from the C server";
-	send(socket_fd, response, strlen(response), 0);
+	Tutorial__Person message = TUTORIAL__PERSON__INIT;
+	const char msg[] = "C Server";
+	unsigned int length = strlen(msg);
+	message.name = malloc(length + 1);
+	memcpy(message.name, msg, length + 1);
+	message.name[length + 1] = 0;
+	message.id = 1;
+	length = tutorial__person__get_packed_size(&message);
+	Tutorial__Person* client_msg =
+		tutorial__person__unpack(NULL, bytes_received, (uint8_t*)buffer);
+	printf("Received message from client.\n");
+	printf("name: %s\n", client_msg->name);
+	printf("id: %d\n", client_msg->id);
+	tutorial__person__pack(&message, (uint8_t*)buffer);
+	sendto(socket_fd, buffer, length, MSG_CONFIRM, (struct sockaddr*)client_address_ptr,
+		   sizeof(*client_address_ptr));
 }
 
 void interrupt_handler(int signum)
@@ -58,7 +74,7 @@ int main(int argc, char* argv[argc + 1])
 		exit(EXIT_FAILURE);
 	}
 	int port_number = atoi(argv[1]);
-	int socket_fd = socket(AF_INET6, SOCK_STREAM, 0);
+	int socket_fd = socket(AF_INET6, SOCK_DGRAM, 0);
 	if (socket_fd < 0) {
 		perror("Error creating socket:");
 		exit(EXIT_FAILURE);
@@ -69,8 +85,9 @@ int main(int argc, char* argv[argc + 1])
 		perror("setsockopt failed");
 		return -1;
 	}
-	struct sockaddr_in6 server_address;
+	struct sockaddr_in6 server_address, client_address;
 	memset(&server_address, 0, sizeof(server_address));
+	memset(&client_address, 0, sizeof(client_address));
 	server_address.sin6_family = AF_INET6;
 	server_address.sin6_port = htons(port_number);
 	server_address.sin6_addr = in6addr_any;
@@ -79,21 +96,14 @@ int main(int argc, char* argv[argc + 1])
 		perror("Bind failed");
 		exit(EXIT_FAILURE);
 	}
-	ret = listen(socket_fd, 1);
 	if (ret < 0) {
-		perror("Listen failed");
+		close(socket_fd);
 		exit(EXIT_FAILURE);
 	}
 	struct sigaction action;
 	set_signal(&action);
 	while (running) {
-		int new_socket_fd = accept(socket_fd, NULL, NULL);
-		if (new_socket_fd < 0) {
-			perror("Error accepting");
-			break;
-		}
-		handle_client(new_socket_fd);
-		close(new_socket_fd);
+		handle_client(socket_fd, &client_address);
 	}
 	close(socket_fd);
 	return EXIT_SUCCESS;
